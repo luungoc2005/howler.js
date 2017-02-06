@@ -2037,30 +2037,47 @@
       decodeAudioData(dataView.buffer, self);
     } else {
       // Load the buffer from the URL.
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', url, true);
-      xhr.responseType = 'arraybuffer';
-      xhr.onload = function() {
-        // Make sure we get a successful response back.
-        var code = (xhr.status + '')[0];
-        if (code !== '0' && code !== '2' && code !== '3') {
-          self._emit('loaderror', null, 'Failed loading audio file with status: ' + xhr.status + '.');
-          return;
-        }
+      if (url.startsWith('file:')) 
+      {
+        self._fsReq = self._fsReq || require('fs'); // Initialize Nodejs fs if not already exist
+        self._fsReq.readFile(decodeURI(url.replace('file:///', '')), function (err, data)
+        {
+          if (err)
+          {
+            self._emit('loaderror', null, 'Failed loading audio file with status: ' + err + '.');
+            return;
+          }
 
-        decodeAudioData(xhr.response, self);
-      };
-      xhr.onerror = function() {
-        // If there is an error, switch to HTML5 Audio.
-        if (self._webAudio) {
-          self._html5 = true;
-          self._webAudio = false;
-          self._sounds = [];
-          delete cache[url];
-          self.load();
-        }
-      };
-      safeXhrSend(xhr);
+          decodeAudioData(data.buffer, self);
+        });
+      }
+      else
+      {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.responseType = 'arraybuffer';
+        xhr.onload = function() {
+          // Make sure we get a successful response back.
+          var code = (xhr.status + '')[0];
+          if (code !== '0' && code !== '2' && code !== '3') {
+            self._emit('loaderror', null, 'Failed loading audio file with status: ' + xhr.status + '.');
+            return;
+          }
+
+          decodeAudioData(xhr.response, self);
+        };
+        xhr.onerror = function() {
+          // If there is an error, switch to HTML5 Audio.
+          if (self._webAudio) {
+            self._html5 = true;
+            self._webAudio = false;
+            self._sounds = [];
+            delete cache[url];
+            self.load();
+          }
+        };
+        safeXhrSend(xhr);
+      }      
     }
   };
 
